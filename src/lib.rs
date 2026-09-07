@@ -42,7 +42,6 @@ use tracing_subscriber::reload;
 mod chrome;
 mod fields;
 mod filter;
-#[cfg(not(debug_assertions))]
 mod fmt_layer;
 mod format;
 mod sink;
@@ -128,13 +127,13 @@ impl PipelineBuilder {
     /// `init` and by tests through a thread-local dispatch.
     fn assemble(self) -> Result<(Dispatch, Pipeline)> {
         let rust_log = std::env::var("RUST_LOG").ok();
-        let preserved = filter::preserved_module_directives(rust_log.as_deref());
+        let preserved = Arc::from(filter::preserved_module_directives(rust_log.as_deref()));
         let default_level =
             filter::bare_env_level(rust_log.as_deref()).unwrap_or(self.default_level);
 
-        let env_filter = filter::build_filter(default_level, &preserved);
+        let env_filter = filter::build_filter_from_directives(default_level, &preserved);
         let (filter_layer, reload_handle) = reload::Layer::new(env_filter);
-        let filter_handle = FilterHandle::new(reload_handle, Arc::from(preserved));
+        let filter_handle = FilterHandle::new(reload_handle, preserved);
 
         let sink_parts = self
             .file_writer
@@ -163,7 +162,8 @@ impl PipelineBuilder {
 }
 
 /// Stdout layer: pretty with span close events in dev, the legacy compact
-/// `console_format` in release.
+/// `console_format` in release. The cfg split is a type-system requirement
+/// (each arm returns a distinct layer type), not a runtime switch.
 #[cfg(debug_assertions)]
 fn stdout_layer<S>() -> impl tracing_subscriber::Layer<S>
 where

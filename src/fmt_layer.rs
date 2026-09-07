@@ -1,4 +1,6 @@
-//! Release console formatter.
+//! Compact console formatter wired into the release-only `stdout_layer`;
+//! compiled (and tested) in every profile so release-only regressions
+//! surface in debug test runs too.
 //!
 //! Delegates to `crate::format::console_format` with a synthesized
 //! `log::Record` so stdout output stays byte-identical to the legacy flexi
@@ -15,6 +17,9 @@ use tracing_subscriber::registry::LookupSpan;
 
 use crate::fields::FieldExtractor;
 
+// In debug builds the only production caller (the release `stdout_layer`)
+// is cfg'd out, yet the item must stay compiled for the tests below.
+#[cfg_attr(debug_assertions, allow(dead_code))]
 pub(crate) struct CompactConsoleFormat;
 
 impl<S, N> FormatEvent<S, N> for CompactConsoleFormat
@@ -60,7 +65,7 @@ where
     }
 }
 
-#[cfg(all(test, not(debug_assertions)))]
+#[cfg(test)]
 mod tests {
     #![allow(clippy::panic)] // assertion helpers in tests diverge via panic
 
@@ -96,9 +101,9 @@ mod tests {
         }
     }
 
-    // Exercises the full release stdout path (field extraction -> synthesized
-    // log::Record -> console_format -> trailing newline) that debug test
-    // runs never compile.
+    // Exercises the full compact stdout path (field extraction -> synthesized
+    // log::Record -> console_format -> trailing newline); runs in both debug
+    // and release test profiles.
     #[test]
     fn compact_console_format_renders_bridged_log_records() {
         let capture = CaptureWriter::default();

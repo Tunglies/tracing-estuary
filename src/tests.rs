@@ -198,7 +198,10 @@ fn log_records_bridge_through_log_target_fields() {
 fn set_default_level_changes_filter_and_preserves_module_directives() {
     let (filter_layer, reload_handle) =
         reload::Layer::new(filter::build_filter(log::LevelFilter::Info, "app=trace"));
-    let filter_handle = crate::FilterHandle::new(reload_handle, Arc::from("app=trace"));
+    let filter_handle = crate::FilterHandle::new(
+        reload_handle,
+        Arc::from(filter::preserved_module_directives(Some("app=trace"))),
+    );
     let recording = Recording::default();
     let dispatch = tracing::Dispatch::new(
         Registry::default()
