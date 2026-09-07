@@ -203,7 +203,10 @@ impl FlexiSink {
     }
 
     /// Ends the writer thread after a final flush. Explicit teardown for
-    /// embedders that drop the pipeline before process exit.
+    /// embedders that drop the pipeline before process exit. The flexi
+    /// flusher thread behind `BufferAndFlushWith` cannot be stopped — it dies
+    /// with the process, so short-lived pipelines are unaffected, but
+    /// repeated init/shutdown cycles accumulate one thread and fd each.
     pub fn shutdown(&self) -> bool {
         let (ack_tx, ack_rx) = sync_channel(1);
         if send_with_deadline(&self.tx, SinkMsg::Shutdown(ack_tx), CONTROL_TIMEOUT).is_err() {
